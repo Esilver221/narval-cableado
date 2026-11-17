@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1c2125">
+<title>Cableado Hotel Narval</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<script src="config.js"></script>
+<style>
+/* Herramienta de campo: plano por nivel, pestañas de nivel y servicio, foto + distancia de cable por nodo */
+:root{
+  color-scheme:light;
+  --bg:#f1f0ec; --panel:#ffffff; --ink:#1c2125; --muted:#5b636a; --line:#d9d7d0;
+  --paper:#ffffff; --pend:#f5b700; --pend-ink:#1c1600; --mid:#ef7d00; --ok:#1f8f4e; --ok-ink:#ffffff; --ok-bg:#e1f1e7; --pend-bg:#fdf3cf; --mid-bg:#fde5cc;
+  --accent:#1c2125; --accent-ink:#ffffff; --focus:#1d6fe0;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-tag:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141618; --panel:#1e2225; --ink:#ebeae6; --muted:#a1a7ac; --line:#30363b;
+  --ok-bg:#16301f; --pend-bg:#3a3010; --mid-bg:#3d2610; --accent:#ebeae6; --accent-ink:#141618; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+img{max-width:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.4}
+.wrap{max-width:1200px;margin:0 auto;padding-block:12px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px}
+h1{font-family:var(--f-display);font-weight:700;font-size:1.7rem;line-height:1.05;margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:700;font-size:1.2rem;margin:0}
+.eyebrow{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.muted{color:var(--muted)}
+.head{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:end;justify-content:space-between}
+.head .t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.prog{display:flex;flex-direction:column;gap:5px;flex:1 1 240px;max-width:400px}
+.bar{height:10px;border-radius:5px;background:var(--line);overflow:hidden;display:flex}
+.bar>i{display:block;height:100%;transition:width .3s}
+.bar>i.ok{background:var(--ok)} .bar>i.mid{background:var(--mid)}
+.count{font-variant-numeric:tabular-nums;font-weight:700}
+.sub{font-size:.88rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.notice{background:var(--pend-bg);border-radius:10px;padding:10px 14px;font-size:.95rem}
+
+/* Pestañas */
+.tabrow{display:flex;flex-direction:column;gap:4px}
+.tabrow .lbl{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;border:2px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:8px 13px;font:700 1rem var(--f-body);cursor:pointer;display:flex;gap:8px;align-items:center;min-height:46px}
+.tab small{font:600 .8rem var(--f-tag);color:var(--muted);font-variant-numeric:tabular-nums}
+.tab i{width:12px;height:12px;border-radius:50%;border:2px solid #1c2125;background:var(--c);flex:none}
+.tab[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.tab[aria-selected="true"] small{color:var(--bg);opacity:.75}
+.tab[aria-selected="true"] i{border-color:var(--bg)}
+.tabs.svc .tab{min-height:42px;padding:6px 12px;font-size:.95rem}
+
+.toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.tbtn{display:inline-flex;align-items:center;gap:8px;border:2px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:8px 14px;font:600 .95rem var(--f-body);cursor:pointer;min-height:44px}
+.tbtn svg{width:20px;height:20px}
+
+/* Visor */
+.vp{position:relative;height:min(74vh,820px);min-height:340px;background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.vp.drag{cursor:grabbing}
+.vp.full{position:fixed;inset:0;height:auto;min-height:0;border-radius:0;border:0;z-index:15}
+.vp>img{position:absolute;left:0;top:0;width:1600px;height:3683px;max-width:none;transform-origin:0 0;will-change:transform;pointer-events:none;-webkit-user-drag:none}
+.pins{position:absolute;inset:0;pointer-events:none;--lf:12px}
+.pin{position:absolute;left:0;top:0;width:0;height:0;z-index:2}
+.pin.sel{z-index:3}
+.pin b{position:absolute;left:calc(var(--sz)/-2);top:calc(var(--sz)/-2);width:var(--sz);height:var(--sz);border-radius:50%;background:var(--c,var(--pend));border:2px solid #1c2125;box-shadow:0 0 0 2px #fff;display:flex;align-items:center;justify-content:center;color:#fff;font:700 calc(var(--sz)*.5)/1 var(--f-body)}
+.mode-avance .pin b{background:var(--pend);color:var(--pend-ink)}
+.mode-avance .pin.mid b{background:var(--mid);color:#fff}
+.mode-avance .pin.done b{background:var(--ok);color:var(--ok-ink)}
+.pin.done b::after{content:"✓"}
+.pin.mid b::after{content:"•"}
+.mode-cat .pin.done b{box-shadow:0 0 0 2px #fff,0 0 0 5px var(--ok)}
+.mode-cat .pin.mid b{box-shadow:0 0 0 2px #fff,0 0 0 5px var(--mid)}
+.pin em{display:none;position:absolute;left:calc(var(--sz)/2 + 4px);top:0;transform:translateY(-50%);font:600 var(--lf)/1 var(--f-tag);font-style:normal;white-space:nowrap;background:#1c2125;color:#fff;padding:3px 5px;border-radius:4px}
+.pins.lbl .pin em,.pins.big .pin em{display:block}
+.pin.sel b{box-shadow:0 0 0 3px #fff,0 0 0 7px var(--focus)}
+.pin.sel em{display:block;background:var(--focus)}
+.ctrls{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:8px;z-index:2}
+.ctrls button,.nextbtn,.vpbtn{width:48px;height:48px;border-radius:10px;border:1px solid #c9c7c0;background:#ffffffee;color:#1c2125;font:700 1.4rem/1 var(--f-body);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px #0002}
+.ctrls svg,.vpbtn svg{width:22px;height:22px}
+.vpbtn{position:absolute;left:10px;top:10px;z-index:3;width:auto;padding:0 12px;gap:6px;font-size:.95rem}
+.nextbtn{position:absolute;left:10px;bottom:10px;width:auto;padding:0 16px;gap:8px;font-size:1rem;background:var(--pend);border-color:#1c2125;z-index:2}
+.nextbtn svg{width:22px;height:22px}
+.hint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:#1c2125e6;color:#fff;padding:6px 12px;border-radius:999px;font-size:.85rem;pointer-events:none;white-space:nowrap;z-index:2;transition:opacity .4s}
+
+/* Panel de capas */
+.panel{position:absolute;left:10px;top:66px;z-index:4;width:min(360px,calc(100% - 80px));max-height:calc(100% - 80px);overflow:auto;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px #0003;padding:14px;display:flex;flex-direction:column;gap:14px;cursor:auto;touch-action:pan-y}
+.panel h3{margin:0;font:700 .72rem var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.prow{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sw{position:relative;width:46px;height:28px;flex:none}
+.sw input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.sw span{position:absolute;inset:0;border-radius:14px;background:var(--line);transition:background .2s;pointer-events:none}
+.sw span::after{content:"";position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #0004;transition:transform .2s}
+.sw input:checked+span{background:var(--ok)}
+.sw input:checked+span::after{transform:translateX(18px)}
+.sw input:focus-visible+span{outline:3px solid var(--focus);outline-offset:2px}
+.seg{display:flex;border:2px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1;border:0;background:var(--panel);color:var(--ink);font:600 .9rem var(--f-body);padding:8px 10px;cursor:pointer;font-variant-numeric:tabular-nums}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.cats{display:flex;flex-direction:column;gap:2px;margin:0;padding:0;list-style:none}
+.cats li{display:grid;grid-template-columns:16px 1fr auto;gap:8px;align-items:center;padding:7px 4px;border-radius:8px}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid #1c2125;background:var(--c)}
+.cats .n{font:600 .95rem var(--f-tag);font-variant-numeric:tabular-nums;text-align:right}
+.cats .n small{display:block;font:500 .72rem var(--f-body);color:var(--muted)}
+.ptot{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px;font-weight:700}
+.ptot span:last-child{font-family:var(--f-tag)}
+.legend{display:flex;flex-direction:column;gap:6px;font-size:.92rem}
+.legend span{display:flex;align-items:center;gap:8px}
+
+/* Ficha */
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--panel);border-top:1px solid var(--line);border-radius:16px 16px 0 0;box-shadow:0 -6px 24px #0003;padding:14px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));max-height:88vh;overflow:auto}
+.sheet .in{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.sheet .top{display:flex;justify-content:space-between;align-items:start;gap:12px}
+.tag{font-family:var(--f-tag);font-weight:600;font-size:1.7rem;line-height:1.05;letter-spacing:.02em;overflow-wrap:anywhere}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-block;font-size:.8rem;font-weight:700;padding:3px 9px;border-radius:999px;width:max-content}
+.chip.ok{background:var(--ok-bg);color:var(--ok)}
+.chip.pend{background:var(--pend-bg);color:var(--ink)}
+.dist{display:flex;flex-direction:column;gap:8px;border:2px solid var(--line);border-radius:12px;padding:12px}
+.dist .row{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}
+.dist label{font-weight:700}
+.numw{position:relative;flex:1 1 140px;min-width:0}
+.numw input{width:100%;font:600 1.4rem var(--f-tag);padding:10px 44px 10px 12px;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink);min-height:56px}
+.numw span{position:absolute;right:14px;top:50%;transform:translateY(-50%);font:600 1.1rem var(--f-body);color:var(--muted);pointer-events:none}
+.who{width:100%;font:500 1rem var(--f-body);padding:9px 12px;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink);min-height:44px}
+.dist .last{font-size:.88rem;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:12px;font:700 1.15rem var(--f-body);padding:14px 18px;cursor:pointer;min-height:56px}
+.btn svg{width:26px;height:26px;flex:none}
+.btn-cam{background:var(--accent);color:var(--accent-ink);width:100%}
+.btn-save{background:var(--ok);color:#fff;flex:0 0 auto}
+.btn-sec{background:transparent;color:var(--ink);border:2px solid var(--line);min-height:44px;padding:8px 14px;font-size:.95rem}
+.btn[disabled]{opacity:.55;cursor:wait}
+.x{border:0;background:transparent;color:var(--muted);font:600 1rem var(--f-body);padding:8px;cursor:pointer;min-height:44px}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap}
+.thumbs button{padding:0;border:0;background:none;cursor:pointer;border-radius:6px;overflow:hidden}
+.thumbs img{width:72px;height:72px;object-fit:cover;display:block;background:var(--line)}
+.retry{display:flex;gap:8px;flex-wrap:wrap}
+.retry .btn{flex:1 1 160px}
+.warn{background:var(--pend-bg);border-radius:10px;padding:10px 12px;font-size:.95rem}
+button:focus-visible,input:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+/* Lista */
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.search{flex:1 1 180px;min-width:0;font:600 1.05rem var(--f-tag);padding:11px 13px;border-radius:10px;border:2px solid var(--line);background:var(--panel);color:var(--ink)}
+.list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.list button{width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--pend);border-radius:10px;padding:10px 12px;cursor:pointer;color:var(--ink);display:flex;flex-direction:column;gap:2px;min-height:56px}
+.list button.mid{border-left-color:var(--mid)}
+.list button.done{border-left-color:var(--ok)}
+.list .lt{font:600 1.02rem var(--f-tag);overflow-wrap:anywhere}
+.list .ls{font-size:.85rem;color:var(--muted)}
+.empty{color:var(--muted);padding:8px 0}
+
+/* Resumen */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.tblw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;min-width:560px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{font:700 .75rem var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+td b{font-family:var(--f-tag);font-weight:600}
+td small{display:block;color:var(--muted);font-size:.75rem}
+tfoot td{font-weight:700;border-bottom:0;border-top:2px solid var(--ink)}
+td .sv{display:inline-flex;align-items:center;gap:8px}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(14px + env(safe-area-inset-top,0px));background:#1c2125;color:#fff;padding:12px 18px;border-radius:10px;font-weight:600;z-index:40;max-width:calc(100% - 32px);text-align:center}
+.lb{position:fixed;inset:0;background:rgba(10,12,14,.94);z-index:30;display:flex;flex-direction:column;gap:12px;padding:16px}
+.lb img{flex:1;min-height:0;object-fit:contain;width:100%;max-width:100%}
+.lb .row2{display:flex;gap:8px;justify-content:space-between;align-items:center;color:#f2f2f2}
+.lb .btn-sec{color:#f2f2f2;border-color:#555}
+@media (prefers-reduced-motion: reduce){.bar>i,.hint,.sw span,.sw span::after{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div class="t">
+      <span class="eyebrow">Hotel Narval · Cableado Red, CCTV y AC</span>
+      <h1 id="title">Planta Baja</h1>
+    </div>
+    <div class="prog">
+      <div class="bar"><i class="ok" id="barOk"></i><i class="mid" id="barMid"></i></div>
+      <span class="count" id="countText">Cargando…</span>
+      <span class="sub" id="subText"></span>
+    </div>
+  </header>
+
+  <div class="tabrow"><span class="lbl">Nivel</span><div class="tabs" role="tablist" aria-label="Niveles" id="tabsNivel"></div></div>
+  <div class="tabrow"><span class="lbl">Servicio</span><div class="tabs svc" role="tablist" aria-label="Servicios" id="tabsSvc"></div></div>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <div class="toolbar">
+    <button type="button" class="tbtn" id="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Exportar plano PNG</button>
+    <button type="button" class="tbtn" id="csvBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4zM4 10h16M4 15h16M10 4v16"/></svg>Descargar registro CSV</button>
+  </div>
+
+  <div class="vp" id="vp" aria-label="Plano con nodos">
+    <img id="plano" alt="Plano del nivel" draggable="false">
+    <div class="pins" id="pins"></div>
+    <button type="button" class="vpbtn" id="panelBtn" aria-expanded="false" aria-controls="panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5M3 18l9 5 9-5" transform="translate(0 -1.5)"/></svg>Capas y conteo</button>
+    <div class="panel" id="panel" hidden>
+      <div class="prow"><h2>Capas y conteo</h2><button type="button" class="x" id="panelClose">Cerrar</button></div>
+      <div class="prow"><label for="optLabels">Mostrar etiquetas</label><span class="sw"><input type="checkbox" id="optLabels" role="switch"><span></span></span></div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <h3>Tamaño de etiquetas</h3>
+        <div class="seg" id="optSize" role="group" aria-label="Tamaño de etiquetas">
+          <button type="button" data-v="10">Chico</button><button type="button" data-v="12">Mediano</button><button type="button" data-v="15">Grande</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <h3>Colorear por</h3>
+        <div class="seg" id="optMode" role="group" aria-label="Colorear por">
+          <button type="button" data-v="avance">Avance</button><button type="button" data-v="cat">Servicio</button>
+        </div>
+      </div>
+      <div class="legend" id="legend">
+        <span><i class="dot" style="--c:var(--pend)"></i>Falta foto y distancia</span>
+        <span><i class="dot" style="--c:var(--mid)"></i>Falta foto o distancia</span>
+        <span><i class="dot" style="--c:var(--ok)"></i>Completo</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <h3 id="catsTitle">En este nivel</h3>
+        <ul class="cats" id="cats"></ul>
+        <div class="ptot"><span>Total</span><span id="totVis"></span></div>
+      </div>
+    </div>
+    <div class="hint" id="hint">Pellizca para hacer zoom · arrastra para moverte</div>
+    <div class="ctrls">
+      <button type="button" id="zIn" aria-label="Acercar">+</button>
+      <button type="button" id="zOut" aria-label="Alejar">−</button>
+      <button type="button" id="zFit" aria-label="Ver todo el plano"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+      <button type="button" id="zFull" aria-label="Pantalla completa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5"/></svg></button>
+    </div>
+    <button type="button" class="nextbtn" id="nextBtn" hidden></button>
+  </div>
+
+  <div class="tools">
+    <input class="search" id="q" type="search" autocomplete="off" placeholder="Buscar, ej. UTP_N3CCTV01" aria-label="Buscar nodo">
+    <div class="seg" role="group" aria-label="Filtro" style="flex:0 0 auto">
+      <button type="button" id="fPend" aria-pressed="true">Faltan</button>
+      <button type="button" id="fDone" aria-pressed="false">Listos</button>
+    </div>
+  </div>
+  <ul class="list" id="list"></ul>
+  <p class="empty" id="listEmpty" hidden></p>
+
+  <section class="card" aria-labelledby="resT">
+    <div class="prow"><h2 id="resT">Resumen de cable registrado</h2><span class="sub" id="resSub"></span></div>
+    <div class="tblw"><table id="resTbl"></table></div>
+    <p class="sub" style="margin:0">Metros registrados por nivel y servicio. Abajo de cada cantidad: nodos con distancia / total de nodos.</p>
+  </section>
+</div>
+
+<div class="sheet" id="sheet" hidden role="dialog" aria-label="Nodo seleccionado">
+  <div class="in">
+    <div class="top">
+      <div>
+        <div class="tag" id="sTag"></div>
+        <div class="muted" id="sTipo"></div>
+      </div>
+      <button type="button" class="x" id="sClose">Cerrar</button>
+    </div>
+    <div class="chips"><span class="chip" id="sChipF"></span><span class="chip" id="sChipD"></span></div>
+
+    <form class="dist" id="distForm" autocomplete="off">
+      <label for="dVal">Distancia de cable colocado</label>
+      <div class="row">
+        <div class="numw"><input id="dVal" type="number" inputmode="decimal" min="0.1" max="500" step="0.1" placeholder="0.0" required><span>m</span></div>
+        <button type="submit" class="btn btn-save" id="dSave">Guardar</button>
+      </div>
+      <input class="who" id="dWho" type="text" maxlength="40" placeholder="Tu nombre (quién registra)" aria-label="Tu nombre">
+      <span class="last" id="dLast"></span>
+    </form>
+
+    <div class="thumbs" id="sThumbs"></div>
+    <div class="warn" id="sWarn" hidden>No se pudo subir la foto. Muévete a donde tengas mejor señal y toca «Reintentar».</div>
+    <div class="retry" id="sRetry" hidden>
+      <button type="button" class="btn btn-cam" id="rRetry">Reintentar subida</button>
+      <button type="button" class="btn btn-sec" id="rSave">Guardar en el teléfono</button>
+    </div>
+    <button type="button" class="btn btn-cam" id="sCam"></button>
+  </div>
+</div>
+
+<input type="file" id="cam" accept="image/*" capture="environment" hidden>
+
+<div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="Foto">
+  <div class="row2"><strong id="lbTitle" style="font-family:var(--f-tag)"></strong><button type="button" class="btn btn-sec" id="lbClose">Cerrar</button></div>
+  <img id="lbImg" alt="">
+</div>
+
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+/* ===================== DATOS DE LOS PLANOS =====================
+   Tomados de «Planos Hotel Narval - Cableado faltante - todos los niveles etiquetado.dwg».
+   Cada nodo: [etiqueta, nivel, servicio, x, y]
+   - etiqueta: también es la clave que une el nodo con sus fotos y su distancia (no la cambies si ya tiene registros)
+   - x, y: posición relativa en el plano del nivel (0 a 1) */
+const NIVELES = [
+  { id: 'pb', nombre: 'Planta Baja', corto: 'PB', plano: 'plano-pb.png' },
+  { id: 'n1', nombre: 'Nivel 1', corto: 'Nivel 1', plano: 'plano-n1.png' },
+  { id: 'n2', nombre: 'Nivel 2', corto: 'Nivel 2', plano: 'plano-n2.png' },
+  { id: 'n3', nombre: 'Nivel 3', corto: 'Nivel 3', plano: 'plano-n3.png' },
+  { id: 'az', nombre: 'Azotea', corto: 'Azotea', plano: 'plano-az.png' }
+];
+const SERVICIOS = [
+  { id: 'datos', nombre: 'Datos UTP CAT5e', corto: 'Datos', color: '#2563eb' },
+  { id: 'tv', nombre: 'TV (UTP)', corto: 'TV', color: '#16a34a' },
+  { id: 'cctv', nombre: 'CCTV (UTP)', corto: 'CCTV', color: '#c026d3' },
+  { id: 'ap', nombre: 'Access Point (UTP)', corto: 'Access Point', color: '#0e9fb8' },
+  { id: 'x2', nombre: 'Cable Dúplex 18 AWG', corto: 'Dúplex', color: '#dc2626' },
+  { id: 'x3', nombre: 'Cable eléctrico X3', corto: 'X3', color: '#ca8a04' }
+];
+const NODOS = [
+["UTP-PBC1", "pb", "datos", 0.77032, 0.36734],
+  ["UTP-PBC2", "pb", "datos", 0.24421, 0.36648],
+  ["UTP-PBC3", "pb", "datos", 0.24389, 0.14486],
+  ["UTP-PBC4", "pb", "datos", 0.7777, 0.74359],
+  ["UTP-PBC5", "pb", "datos", 0.24278, 0.58941],
+  ["UTP-PBC6", "pb", "datos", 0.24278, 0.59976],
+  ["UTP_PBTVC1", "pb", "tv", 0.55794, 0.40783],
+  ["UTP_PBTVC2", "pb", "tv", 0.42063, 0.41517],
+  ["UTP_PBTVC4", "pb", "tv", 0.55873, 0.78669],
+  ["UTP_PBTVC7", "pb", "tv", 0.56071, 0.1549],
+  ["UTP_PBCCTV01", "pb", "cctv", 0.24111, 0.10593],
+  ["UTP_PBCCTV02", "pb", "cctv", 0.48825, 0.17938],
+  ["UTP_PBCCTV03", "pb", "cctv", 0.24071, 0.23886],
+  ["UTP_PBCCTV04", "pb", "cctv", 0.4504, 0.46186],
+  ["UTP_PBCCTV05", "pb", "cctv", 0.24032, 0.53586],
+  ["UTP_PBCCTV06", "pb", "cctv", 0.24032, 0.73069],
+  ["UTP_PBCCTV07", "pb", "cctv", 0.52651, 0.78179],
+  ["UTP_PBCCTV08", "pb", "cctv", 0.55794, 0.896],
+  ["UTP_PBCCTV09", "pb", "cctv", 0.24032, 0.89617],
+  ["UTP_PBCCTV10", "pb", "cctv", 0.77532, 0.91052],
+  ["UTP_PBCCTV11", "pb", "cctv", 0.22944, 0.91052],
+  ["X2_18AWG-PBC1", "pb", "x2", 0.5623, 0.38034],
+  ["X2_18AWG-PBC2", "pb", "x2", 0.40278, 0.38034],
+  ["X2_18AWG-PBC3", "pb", "x2", 0.38373, 0.14],
+  ["X2_18AWG-PBC4", "pb", "x2", 0.56389, 0.71724],
+  ["X3-PBC1", "pb", "x3", 0.5623, 0.38517],
+  ["X3-PBC2", "pb", "x3", 0.40278, 0.38517],
+  ["X3-PBC3", "pb", "x3", 0.38373, 0.14483],
+  ["X3-PBC4", "pb", "x3", 0.56389, 0.72207],
+  ["UTP-N1C1", "n1", "datos", 0.75998, 0.77306],
+  ["UTP-N1C2", "n1", "datos", 0.23032, 0.61299],
+  ["UTP-N1C3", "n1", "datos", 0.76221, 0.56366],
+  ["UTP-N1C4", "n1", "datos", 0.23032, 0.35518],
+  ["UTP-N1C5", "n1", "datos", 0.7582, 0.35518],
+  ["UTP-N1C6", "n1", "datos", 0.23032, 0.17818],
+  ["UTP-N1C7", "n1", "datos", 0.75602, 0.17806],
+  ["UTP_N1TVC1", "n1", "tv", 0.55698, 0.83848],
+  ["UTP_N1TVC2", "n1", "tv", 0.41927, 0.58445],
+  ["UTP_N1TVC3", "n1", "tv", 0.55698, 0.52367],
+  ["UTP_N1TVC4", "n1", "tv", 0.41927, 0.40804],
+  ["UTP_N1TVC5", "n1", "tv", 0.55779, 0.40813],
+  ["UTP_N1TVC6", "n1", "tv", 0.42125, 0.15522],
+  ["UTP_N1TVC7", "n1", "tv", 0.55579, 0.15511],
+  ["UTP_N1CCTV01", "n1", "cctv", 0.48852, 0.17955],
+  ["UTP_N1CCTV02", "n1", "cctv", 0.45033, 0.46212],
+  ["UTP_N1CCTV03", "n1", "cctv", 0.52532, 0.77736],
+  ["UTP_N1CCTV04", "n1", "cctv", 0.23925, 0.73176],
+  ["UTP_N1CCTV05", "n1", "cctv", 0.2408, 0.89633],
+  ["UTP_N1AP01", "n1", "ap", 0.50256, 0.33035],
+  ["UTP_N1AP02", "n1", "ap", 0.5006, 0.69462],
+  ["X2_18AWG-N1C1", "n1", "x2", 0.54807, 0.77172],
+  ["X2_18AWG-N1C2", "n1", "x2", 0.42871, 0.62121],
+  ["X2_18AWG-N1C3", "n1", "x2", 0.54837, 0.56367],
+  ["X2_18AWG-N1C4", "n1", "x2", 0.42723, 0.34978],
+  ["X2_18AWG-N1C5", "n1", "x2", 0.54925, 0.3551],
+  ["X2_18AWG-N1C6", "n1", "x2", 0.42802, 0.16769],
+  ["X2_18AWG-N1C7", "n1", "x2", 0.54834, 0.16813],
+  ["X3-N1C1", "n1", "x3", 0.54833, 0.7764],
+  ["X3-N1C2", "n1", "x3", 0.42845, 0.61936],
+  ["X3-N1C3", "n1", "x3", 0.54863, 0.56869],
+  ["X3-N1C4", "n1", "x3", 0.42672, 0.35568],
+  ["X3-N1C5", "n1", "x3", 0.54899, 0.36028],
+  ["X3-N1C6", "n1", "x3", 0.42828, 0.17258],
+  ["X3-N1C7", "n1", "x3", 0.54807, 0.17344],
+  ["UTP-N2C1", "n2", "datos", 0.75371, 0.77306],
+  ["UTP-N2C2", "n2", "datos", 0.22404, 0.61299],
+  ["UTP-N2C3", "n2", "datos", 0.75594, 0.56366],
+  ["UTP-N2C4", "n2", "datos", 0.22404, 0.35518],
+  ["UTP-N2C5", "n2", "datos", 0.75192, 0.35518],
+  ["UTP-N2C6", "n2", "datos", 0.22404, 0.17818],
+  ["UTP-N2C7", "n2", "datos", 0.74975, 0.17806],
+  ["UTP_N2TVC1", "n2", "tv", 0.55698, 0.83848],
+  ["UTP_N2TVC2", "n2", "tv", 0.41927, 0.58445],
+  ["UTP_N2TVC3", "n2", "tv", 0.55698, 0.52367],
+  ["UTP_N2TVC4", "n2", "tv", 0.41927, 0.40804],
+  ["UTP_N2TVC5", "n2", "tv", 0.55779, 0.40813],
+  ["UTP_N2TVC6", "n2", "tv", 0.42125, 0.15522],
+  ["UTP_N2TVC7", "n2", "tv", 0.55579, 0.15511],
+  ["UTP_N2CCTV01", "n2", "cctv", 0.48852, 0.17955],
+  ["UTP_N2CCTV02", "n2", "cctv", 0.45033, 0.46212],
+  ["UTP_N2CCTV03", "n2", "cctv", 0.52532, 0.77736],
+  ["UTP_N2CCTV04", "n2", "cctv", 0.23925, 0.73176],
+  ["UTP_N2CCTV05", "n2", "cctv", 0.2408, 0.89633],
+  ["UTP_N2AP01", "n2", "ap", 0.50256, 0.33035],
+  ["UTP_N2AP02", "n2", "ap", 0.5006, 0.69462],
+  ["X2_18AWG-N2C1", "n2", "x2", 0.54807, 0.77172],
+  ["X2_18AWG-N2C2", "n2", "x2", 0.42871, 0.62121],
+  ["X2_18AWG-N2C3", "n2", "x2", 0.54837, 0.56367],
+  ["X2_18AWG-N2C4", "n2", "x2", 0.42723, 0.34978],
+  ["X2_18AWG-N2C5", "n2", "x2", 0.54925, 0.3551],
+  ["X2_18AWG-N2C6", "n2", "x2", 0.42802, 0.16769],
+  ["X2_18AWG-N2C7", "n2", "x2", 0.54834, 0.16813],
+  ["X3-N2C1", "n2", "x3", 0.54833, 0.7764],
+  ["X3-N2C2", "n2", "x3", 0.42845, 0.61936],
+  ["X3-N2C3", "n2", "x3", 0.54863, 0.56869],
+  ["X3-N2C4", "n2", "x3", 0.42672, 0.35568],
+  ["X3-N2C5", "n2", "x3", 0.54899, 0.36028],
+  ["X3-N2C6", "n2", "x3", 0.42828, 0.17258],
+  ["X3-N2C7", "n2", "x3", 0.54807, 0.17344],
+  ["UTP-N3C1", "n3", "datos", 0.77012, 0.77317],
+  ["UTP-N3C2", "n3", "datos", 0.23006, 0.6131],
+  ["UTP-N3C3", "n3", "datos", 0.76306, 0.56377],
+  ["UTP-N3C4", "n3", "datos", 0.23032, 0.35529],
+  ["UTP-N3C5", "n3", "datos", 0.77119, 0.35529],
+  ["UTP-N3C6", "n3", "datos", 0.23032, 0.17829],
+  ["UTP-N3C7", "n3", "datos", 0.75602, 0.17829],
+  ["UTP_N3TVC1", "n3", "tv", 0.55698, 0.83848],
+  ["UTP_N3TVC2", "n3", "tv", 0.41927, 0.58445],
+  ["UTP_N3TVC3", "n3", "tv", 0.55698, 0.52367],
+  ["UTP_N3TVC4", "n3", "tv", 0.41927, 0.40804],
+  ["UTP_N3TVC5", "n3", "tv", 0.55779, 0.40813],
+  ["UTP_N3TVC6", "n3", "tv", 0.42125, 0.15522],
+  ["UTP_N3TVC7", "n3", "tv", 0.55579, 0.15511],
+  ["UTP_N3CCTV01", "n3", "cctv", 0.48852, 0.17955],
+  ["UTP_N3CCTV02", "n3", "cctv", 0.45033, 0.46212],
+  ["UTP_N3CCTV03", "n3", "cctv", 0.52532, 0.77736],
+  ["UTP_N3CCTV04", "n3", "cctv", 0.23925, 0.73176],
+  ["UTP_N3CCTV05", "n3", "cctv", 0.2408, 0.89633],
+  ["UTP_N3AP01", "n3", "ap", 0.50256, 0.33035],
+  ["UTP_N3AP02", "n3", "ap", 0.5006, 0.69462],
+  ["X2_18AWG-N3C1", "n3", "x2", 0.54807, 0.77172],
+  ["X2_18AWG-N3C2", "n3", "x2", 0.42871, 0.62121],
+  ["X2_18AWG-N3C3", "n3", "x2", 0.54837, 0.56367],
+  ["X2_18AWG-N3C4", "n3", "x2", 0.42723, 0.34978],
+  ["X2_18AWG-N3C5", "n3", "x2", 0.54925, 0.3551],
+  ["X2_18AWG-N3C6", "n3", "x2", 0.42802, 0.16769],
+  ["X2_18AWG-N3C7", "n3", "x2", 0.54834, 0.16813],
+  ["X3-N3C1", "n3", "x3", 0.54833, 0.7764],
+  ["X3-N3C2", "n3", "x3", 0.42845, 0.61936],
+  ["X3-N3C3", "n3", "x3", 0.54863, 0.56869],
+  ["X3-N3C4", "n3", "x3", 0.42672, 0.35568],
+  ["X3-N3C5", "n3", "x3", 0.54899, 0.36028],
+  ["X3-N3C6", "n3", "x3", 0.42828, 0.17258],
+  ["X3-N3C7", "n3", "x3", 0.54807, 0.17344],
+  ["X2_18AWG-AZC1", "az", "x2", 0.62214, 0.13448],
+  ["X3-AZC1", "az", "x3", 0.62214, 0.13931]
+];
+
+(() => {
+  const W = 1600, H = 3683;
+  const CFG = window.CONFIG || {};
+  const API = (CFG.API_URL || '').trim(), CLAVE = CFG.CLAVE || '', OBRA = CFG.OBRA || '';
+  const DEMO = !API;
+  const CAM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+  const thumb = (f, w) => f.url || `https://drive.google.com/thumbnail?id=${encodeURIComponent(f.id)}&sz=w${w}`;
+  const $ = id => document.getElementById(id);
+  const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const store = { get(k, d){ try { const v = localStorage.getItem('narval:' + k); return v == null ? d : JSON.parse(v); } catch (e){ return d; } }, set(k, v){ try { localStorage.setItem('narval:' + k, JSON.stringify(v)); } catch (e){} } };
+  const fmtM = m => (Math.round(m * 10) / 10).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+  const fmtFecha = iso => { try { return new Date(iso).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }); } catch (e){ return ''; } };
+
+  const svMap = Object.fromEntries(SERVICIOS.map(s => [s.id, s]));
+  const nvMap = Object.fromEntries(NIVELES.map(n => [n.id, n]));
+  const ordS = Object.fromEntries(SERVICIOS.map((s, i) => [s.id, i]));
+  const ITEMS = NODOS.map(([tag, nv, sv, x, y]) => ({ key: tag, tag, nv, sv, x, y }))
+    .sort((a, b) => (ordS[a.sv] - ordS[b.sv]) || a.tag.localeCompare(b.tag, 'es', { numeric: true }));
+
+  let nivel = nvMap[store.get('nivel', 'pb')] || NIVELES[0];
+  let servicio = store.get('svc', 'todos');
+  let fotos = {}, dist = DEMO ? store.get('demo:dist', {}) : {};
+  let filtro = 'pend', q = '', sel = null, busy = false, savingD = false, ready = DEMO, pendiente = null;
+  let optLabels = store.get('labels', false), optSize = store.get('size', 12), optMode = store.get('mode', 'avance');
+
+  const nF = d => (fotos[d.key] || []).length;
+  const hasD = d => !!(dist[d.key] && dist[d.key].m > 0);
+  const estado = d => { const a = nF(d) > 0, b = hasD(d); return a && b ? 'done' : (a || b ? 'mid' : 'pend'); };
+  const delNivel = nv => ITEMS.filter(d => d.nv === nv.id);
+  const svcsNivel = nv => SERVICIOS.filter(s => ITEMS.some(d => d.nv === nv.id && d.sv === s.id));
+  const visibles = () => delNivel(nivel).filter(d => servicio === 'todos' || d.sv === servicio);
+  const metros = list => list.reduce((t, d) => t + (hasD(d) ? dist[d.key].m : 0), 0);
+
+  function toast(msg, ms = 2600){ const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, ms); }
+
+  // ---------------- Visor con zoom ----------------
+  const vp = $('vp'), img = $('plano'), pinsEl = $('pins');
+  let S = 0.2, TX = 0, TY = 0, FIT = 0.2; const MAX = 3;
+  let pinEls = {};
+
+  function buildPins(){
+    pinsEl.innerHTML = ''; pinEls = {};
+    for (const d of visibles()){
+      const el = document.createElement('div'); el.className = 'pin';
+      el.style.setProperty('--c', svMap[d.sv].color);
+      el.innerHTML = `<b></b><em>${esc(d.tag)}</em>`;
+      pinsEl.appendChild(el); pinEls[d.key] = el;
+    }
+  }
+  const rect = () => vp.getBoundingClientRect();
+  function fitView(){ const r = rect(); FIT = Math.min(r.width / W, r.height / H); S = FIT; TX = (r.width - W*S)/2; TY = (r.height - H*S)/2; apply(); }
+  function clampT(){
+    const r = rect(), w = W*S, h = H*S, m = 80;
+    TX = w <= r.width ? (r.width - w)/2 : Math.min(m, Math.max(r.width - w - m, TX));
+    TY = h <= r.height ? (r.height - h)/2 : Math.min(m, Math.max(r.height - h - m, TY));
+  }
+  function zoomAt(f, cx, cy){ const ns = Math.max(FIT, Math.min(MAX, S*f)), k = ns/S; TX = cx - (cx - TX)*k; TY = cy - (cy - TY)*k; S = ns; clampT(); apply(); }
+  let raf = 0;
+  function apply(){ if (raf) return; raf = requestAnimationFrame(() => { raf = 0; img.style.transform = `translate(${TX}px,${TY}px) scale(${S})`; placePins(); }); }
+  function curSize(){ return Math.max(12, Math.min(34, S*36)); }
+  // Acomodo de etiquetas: cada una busca un lugar donde no tape a otra etiqueta ni a otro nodo
+  function acomodar(list, gap){
+    const placed = [], obst = list.map(o => ({ x: o.x - o.r, y: o.y - o.r, w: 2*o.r, h: 2*o.r }));
+    const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    const order = list.map((o, i) => i).sort((i, j) => list[i].y - list[j].y || list[i].x - list[j].x);
+    const res = new Array(list.length);
+    for (const i of order){
+      const o = list[i]; let best = null, bestScore = Infinity;
+      for (const k of [0, 1, -1, 2, -2, 3, -3, 4, -4]){
+        for (const side of [1, -1]){
+          const x = side > 0 ? o.x + o.r + gap : o.x - o.r - gap - o.w;
+          const y = o.y - o.h/2 + k*(o.h + 2);
+          const r = { x, y, w: o.w, h: o.h };
+          let score = Math.abs(k)*3 + (side < 0 ? 1 : 0);
+          for (const p of placed) if (hit(r, p)) score += 100;
+          obst.forEach((p, j) => { if (j !== i && hit(r, p)) score += 40; });
+          if (score < bestScore){ bestScore = score; best = r; }
+          if (score < 3) break;
+        }
+        if (bestScore < 3) break;
+      }
+      placed.push(best); res[i] = { dx: best.x - o.x, dy: best.y - o.y };
+    }
+    return res;
+  }
+  const anchoEt = {};
+  function placePins(){
+    const sz = curSize();
+    pinsEl.style.setProperty('--sz', sz + 'px');
+    const big = S >= 0.85; pinsEl.classList.toggle('big', big);
+    const vis = [];
+    for (const d of visibles()){
+      const el = pinEls[d.key]; if (!el) continue;
+      const px = TX + d.x*W*S, py = TY + d.y*H*S;
+      el.style.transform = `translate(${px}px,${py}px)`;
+      vis.push({ d, el, x: px, y: py });
+    }
+    if (!(optLabels || big)){ vis.forEach(v => { const em = v.el.querySelector('em'); if (em.style.left){ em.style.left = ''; em.style.top = ''; em.style.transform = ''; } }); return; }
+    const h = optSize + 8;
+    const list = vis.map(v => { const k = v.d.key + '|' + optSize; if (!anchoEt[k]) anchoEt[k] = v.el.querySelector('em').offsetWidth || (v.d.tag.length * optSize * 0.62 + 12); return { x: v.x, y: v.y, r: sz/2 + 2, w: anchoEt[k], h }; });
+    const pos = acomodar(list, 4);
+    vis.forEach((v, i) => { const em = v.el.querySelector('em'); em.style.left = pos[i].dx + 'px'; em.style.top = pos[i].dy + 'px'; em.style.transform = 'none'; });
+  }
+  function flyTo(d){
+    const r = rect(); S = Math.max(S, Math.min(MAX, 0.9));
+    TX = r.width/2 - d.x*W*S; TY = r.height*0.35 - d.y*H*S; clampT(); apply();
+  }
+
+  const pts = new Map(); let start = null, moved = false, pinch = null, lastTap = 0;
+  const enControl = t => t.closest('button, .panel, input, label');
+  vp.addEventListener('pointerdown', e => {
+    if (enControl(e.target)) return;
+    vp.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    hideHint();
+    if (pts.size === 1){ start = { x: e.clientX, y: e.clientY, tx: TX, ty: TY }; moved = false; }
+    else if (pts.size === 2){ const [a, b] = [...pts.values()], r = rect(); pinch = { d: Math.hypot(a.x-b.x, a.y-b.y), mx: (a.x+b.x)/2 - r.left, my: (a.y+b.y)/2 - r.top }; moved = true; }
+  });
+  vp.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size >= 2 && pinch){
+      const [a, b] = [...pts.values()], r = rect();
+      const d = Math.hypot(a.x-b.x, a.y-b.y), mx = (a.x+b.x)/2 - r.left, my = (a.y+b.y)/2 - r.top;
+      zoomAt(d / pinch.d, mx, my); TX += mx - pinch.mx; TY += my - pinch.my; clampT(); apply();
+      pinch = { d, mx, my };
+    } else if (pts.size === 1 && start){
+      const dx = e.clientX - start.x, dy = e.clientY - start.y;
+      if (!moved && Math.hypot(dx, dy) > 7){ moved = true; vp.classList.add('drag'); }
+      if (moved){ TX = start.tx + dx; TY = start.ty + dy; clampT(); apply(); }
+    }
+  });
+  function endPtr(e){
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if (pts.size === 1){ const p = [...pts.values()][0]; start = { x: p.x, y: p.y, tx: TX, ty: TY }; pinch = null; }
+    if (pts.size === 0){
+      vp.classList.remove('drag');
+      if (!moved && e.type === 'pointerup') tap(e.clientX, e.clientY);
+      start = null; pinch = null;
+    }
+  }
+  vp.addEventListener('pointerup', endPtr); vp.addEventListener('pointercancel', endPtr);
+  vp.addEventListener('wheel', e => { if (e.target.closest('.panel')) return; e.preventDefault(); const r = rect(); zoomAt(Math.exp(-e.deltaY * 0.0016), e.clientX - r.left, e.clientY - r.top); hideHint(); }, { passive: false });
+
+  function tap(cx, cy){
+    if (!$('panel').hidden){ togglePanel(false); return; }
+    const r = rect(), x = cx - r.left, y = cy - r.top, rad = Math.max(22, curSize()/2 + 8);
+    const near = visibles().map(d => ({ d, dist: Math.hypot(TX + d.x*W*S - x, TY + d.y*H*S - y) })).filter(o => o.dist <= rad).sort((a, b) => a.dist - b.dist);
+    const now = Date.now();
+    if (near.length === 0){ if (now - lastTap < 320){ zoomAt(2.2, x, y); lastTap = 0; } else lastTap = now; return; }
+    if (near.length > 1 && S < 1.4 && near[1].dist - near[0].dist < 10){ zoomAt(2.4, x, y); return; }
+    select(near[0].d);
+  }
+
+  $('zIn').onclick = () => { const r = rect(); zoomAt(1.8, r.width/2, r.height/2); };
+  $('zOut').onclick = () => { const r = rect(); zoomAt(1/1.8, r.width/2, r.height/2); };
+  $('zFit').onclick = fitView;
+  $('zFull').onclick = () => {
+    const full = vp.classList.toggle('full');
+    document.body.style.overflow = full ? 'hidden' : '';
+    $('zFull').setAttribute('aria-label', full ? 'Salir de pantalla completa' : 'Pantalla completa');
+    requestAnimationFrame(fitView);
+  };
+  let hintHidden = false;
+  function hideHint(){ if (hintHidden) return; hintHidden = true; $('hint').style.opacity = 0; setTimeout(() => $('hint').hidden = true, 450); }
+  setTimeout(hideHint, 6000);
+  window.addEventListener('resize', () => { const wasFit = S <= FIT * 1.01; const r = rect(); FIT = Math.min(r.width / W, r.height / H); if (wasFit) fitView(); else { clampT(); apply(); } });
+
+  // ---------------- Pestañas ----------------
+  function renderTabs(){
+    $('tabsNivel').innerHTML = NIVELES.map(n => { const l = delNivel(n); return `<button type="button" class="tab" role="tab" aria-selected="${n === nivel}" data-id="${n.id}">${esc(n.corto)} <small>${l.filter(d => estado(d) === 'done').length}/${l.length}</small></button>`; }).join('');
+    const l = delNivel(nivel);
+    $('tabsSvc').innerHTML = `<button type="button" class="tab" role="tab" aria-selected="${servicio === 'todos'}" data-id="todos">Todos <small>${l.filter(d => estado(d) === 'done').length}/${l.length}</small></button>` +
+      svcsNivel(nivel).map(s => { const ls = l.filter(d => d.sv === s.id); return `<button type="button" class="tab" role="tab" aria-selected="${servicio === s.id}" data-id="${s.id}"><i style="--c:${s.color}"></i>${esc(s.corto)} <small>${ls.filter(d => estado(d) === 'done').length}/${ls.length}</small></button>`; }).join('');
+  }
+  $('tabsNivel').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) cambiar(b.dataset.id, null); });
+  $('tabsSvc').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) cambiar(null, b.dataset.id); });
+  function cambiar(nv, sv){
+    const nuevoNivel = nv && nvMap[nv] && nvMap[nv] !== nivel;
+    if (nuevoNivel) nivel = nvMap[nv];
+    if (sv) servicio = sv;
+    if (servicio !== 'todos' && !svcsNivel(nivel).some(s => s.id === servicio)) servicio = 'todos';
+    store.set('nivel', nivel.id); store.set('svc', servicio);
+    sel = null; pendiente = null; $('sheet').hidden = true; q = ''; $('q').value = '';
+    cargarVista(nuevoNivel);
+  }
+  function cargarVista(planoNuevo){
+    $('title').textContent = nivel.nombre + (servicio === 'todos' ? '' : ' · ' + svMap[servicio].corto);
+    if (planoNuevo || !img.getAttribute('src')){ img.src = nivel.plano; }
+    buildPins(); renderPanel(); renderAll();
+    if (planoNuevo) fitView(); else apply();
+  }
+
+  // ---------------- Panel de capas ----------------
+  function togglePanel(open){
+    const p = $('panel'); const o = open ?? p.hidden; if (o) renderPanel(); p.hidden = !o;
+    $('panelBtn').setAttribute('aria-expanded', String(o));
+  }
+  $('panelBtn').onclick = () => togglePanel();
+  $('panelClose').onclick = () => togglePanel(false);
+  function applyOpts(){
+    $('optLabels').checked = optLabels;
+    pinsEl.classList.toggle('lbl', optLabels);
+    pinsEl.style.setProperty('--lf', optSize + 'px'); apply();
+    vp.classList.toggle('mode-avance', optMode === 'avance'); vp.classList.toggle('mode-cat', optMode === 'cat');
+    $('legend').hidden = optMode !== 'avance';
+    [...$('optSize').children].forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === optSize)));
+    [...$('optMode').children].forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === optMode)));
+  }
+  $('optLabels').onchange = e => { optLabels = e.target.checked; store.set('labels', optLabels); applyOpts(); };
+  $('optSize').onclick = e => { const b = e.target.closest('button'); if (!b) return; optSize = +b.dataset.v; store.set('size', optSize); applyOpts(); };
+  $('optMode').onclick = e => { const b = e.target.closest('button'); if (!b) return; optMode = b.dataset.v; store.set('mode', optMode); applyOpts(); };
+  function renderPanel(){
+    const l = delNivel(nivel);
+    $('catsTitle').textContent = 'En ' + nivel.nombre;
+    $('cats').innerHTML = svcsNivel(nivel).map(s => {
+      const all = l.filter(d => d.sv === s.id), done = all.filter(d => estado(d) === 'done').length;
+      return `<li><span class="dot" style="--c:${s.color}"></span><span>${esc(s.nombre)}</span><span class="n">${all.length}<small>${done} completos · ${fmtM(metros(all))} m</small></span></li>`;
+    }).join('');
+    $('totVis').textContent = `${l.length} nodos · ${fmtM(metros(l))} m`;
+  }
+
+  // ---------------- Vistas ----------------
+  function select(d){ sel = d; if (pendiente && pendiente.d !== d) pendiente = null; renderPins(); renderSheet(true); $('sheet').hidden = false; }
+  function closeSheet(){ sel = null; $('sheet').hidden = true; renderPins(); }
+  $('sClose').onclick = closeSheet;
+
+  function renderPins(){
+    for (const d of visibles()){
+      const el = pinEls[d.key]; if (!el) continue;
+      const e = estado(d);
+      el.classList.toggle('done', e === 'done'); el.classList.toggle('mid', e === 'mid'); el.classList.toggle('sel', sel === d);
+    }
+  }
+  function renderSheet(nuevo){
+    if (!sel) return;
+    const n = nF(sel), arr = fotos[sel.key] || [], dd = dist[sel.key];
+    $('sTag').textContent = sel.tag;
+    $('sTipo').textContent = `${svMap[sel.sv].nombre} · ${nvMap[sel.nv].nombre}`;
+    $('sChipF').className = 'chip ' + (n ? 'ok' : 'pend');
+    $('sChipF').textContent = n ? (n === 1 ? 'Foto ✓' : `${n} fotos ✓`) : 'Falta foto';
+    $('sChipD').className = 'chip ' + (hasD(sel) ? 'ok' : 'pend');
+    $('sChipD').textContent = hasD(sel) ? `Distancia ✓ ${fmtM(dd.m)} m` : 'Falta distancia';
+    if (nuevo){ $('dVal').value = hasD(sel) ? dd.m : ''; $('dWho').value = store.get('tecnico', ''); }
+    $('dLast').textContent = hasD(sel) ? `Último registro: ${fmtM(dd.m)} m${dd.por ? ' · ' + dd.por : ''}${dd.at ? ' · ' + fmtFecha(dd.at) : ''}` : 'Escribe los metros de cable que se colocaron hasta este nodo.';
+    $('dSave').disabled = savingD; $('dSave').textContent = savingD ? 'Guardando…' : (hasD(sel) ? 'Actualizar' : 'Guardar');
+    $('sThumbs').innerHTML = arr.map((f, i) => `<button type="button" data-i="${i}" aria-label="Ver foto ${i+1}"><img src="${esc(thumb(f, 200))}" alt="" loading="lazy" referrerpolicy="no-referrer"></button>`).join('');
+    const fallo = !!(pendiente && pendiente.d === sel && !busy);
+    $('sWarn').hidden = !fallo; $('sRetry').hidden = !fallo;
+    const b = $('sCam'); b.disabled = busy; b.hidden = fallo;
+    b.innerHTML = busy ? `${CAM}<span>Subiendo…</span>` : `${CAM}<span>${n ? 'Tomar otra foto' : 'Tomar foto de ' + esc(sel.tag)}</span>`;
+  }
+  function renderAll(){
+    const vis = visibles(), total = vis.length;
+    const done = vis.filter(d => estado(d) === 'done').length, mid = vis.filter(d => estado(d) === 'mid').length;
+    $('barOk').style.width = total ? (done / total * 100) + '%' : '0';
+    $('barMid').style.width = total ? (mid / total * 100) + '%' : '0';
+    $('countText').textContent = !ready ? 'Cargando registros…' : `${done} de ${total} completos` + (total && done === total ? ' · ¡Completo!' : '');
+    $('subText').textContent = `${vis.filter(d => nF(d) > 0).length} con foto · ${vis.filter(hasD).length} con distancia · ${fmtM(metros(vis))} m de cable`;
+    $('fPend').textContent = `Faltan ${total - done}`; $('fDone').textContent = `Listos ${done}`;
+    renderTabs(); renderPins(); renderSheet(false); applyOpts(); renderResumen();
+    if (!$('panel').hidden) renderPanel();
+    const qq = q.trim().toLowerCase();
+    const lista = vis.filter(d => qq ? (d.tag.toLowerCase().includes(qq) || svMap[d.sv].nombre.toLowerCase().includes(qq)) : (filtro === 'pend' ? estado(d) !== 'done' : estado(d) === 'done'));
+    $('list').innerHTML = lista.map(d => { const e = estado(d), n = nF(d); return `<li><button type="button" class="${e}" data-key="${esc(d.key)}"><span class="lt">${esc(d.tag)}</span><span class="ls">${esc(svMap[d.sv].corto)} · ${n ? '📷 ' + n : 'sin foto'} · ${hasD(d) ? fmtM(dist[d.key].m) + ' m' : 'sin distancia'}</span></button></li>`; }).join('');
+    const le = $('listEmpty'); le.hidden = lista.length > 0;
+    le.textContent = qq ? `No hay ningún nodo «${q}» en ${nivel.nombre}.` : filtro === 'pend' ? 'Todos los nodos de esta vista están completos.' : 'Todavía no hay nodos completos en esta vista.';
+    const next = vis.find(d => estado(d) !== 'done');
+    $('nextBtn').hidden = !next || !ready;
+    if (next){ $('nextBtn').innerHTML = `${CAM}<span>Siguiente: ${esc(next.tag)}</span>`; $('nextBtn').dataset.key = next.key; }
+  }
+  function renderResumen(){
+    const head = `<thead><tr><th>Servicio</th>${NIVELES.map(n => `<th>${esc(n.corto)}</th>`).join('')}<th>Total</th></tr></thead>`;
+    const celda = l => l.length ? `<b>${fmtM(metros(l))} m</b><small>${l.filter(hasD).length}/${l.length}</small>` : '<span class="muted">—</span>';
+    const body = SERVICIOS.map(s => { const ls = ITEMS.filter(d => d.sv === s.id); return `<tr><td><span class="sv"><i class="dot" style="--c:${s.color}"></i>${esc(s.nombre)}</span></td>${NIVELES.map(n => `<td>${celda(ls.filter(d => d.nv === n.id))}</td>`).join('')}<td>${celda(ls)}</td></tr>`; }).join('');
+    const foot = `<tfoot><tr><td>Total</td>${NIVELES.map(n => `<td>${celda(delNivel(n))}</td>`).join('')}<td>${celda(ITEMS)}</td></tr></tfoot>`;
+    $('resTbl').innerHTML = head + '<tbody>' + body + '</tbody>' + foot;
+    $('resSub').textContent = `${fmtM(metros(ITEMS))} m en ${ITEMS.filter(hasD).length} de ${ITEMS.length} nodos`;
+  }
+  const byKey = k => ITEMS.find(d => d.key === k);
+  $('nextBtn').onclick = () => { const d = byKey($('nextBtn').dataset.key); if (d){ flyTo(d); select(d); } };
+  $('list').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const d = byKey(b.dataset.key); if (d){ vp.scrollIntoView({ block: 'start', behavior: 'smooth' }); flyTo(d); select(d); } });
+  $('q').addEventListener('input', e => { q = e.target.value; renderAll(); });
+  $('fPend').onclick = () => { filtro = 'pend'; $('fPend').setAttribute('aria-pressed','true'); $('fDone').setAttribute('aria-pressed','false'); renderAll(); };
+  $('fDone').onclick = () => { filtro = 'done'; $('fDone').setAttribute('aria-pressed','true'); $('fPend').setAttribute('aria-pressed','false'); renderAll(); };
+
+  // ---------------- Distancia de cable ----------------
+  $('distForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!sel || savingD) return;
+    const d = sel, m = Math.round(parseFloat(String($('dVal').value).replace(',', '.')) * 10) / 10;
+    const por = $('dWho').value.trim();
+    if (!(m > 0 && m <= 500)){ toast('Escribe una distancia entre 0.1 y 500 m.'); $('dVal').focus(); return; }
+    if (!por){ toast('Escribe tu nombre para saber quién registró.'); $('dWho').focus(); return; }
+    store.set('tecnico', por);
+    savingD = true; renderSheet(false);
+    try {
+      let at = new Date().toISOString();
+      if (!DEMO){
+        const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ clave: CLAVE, accion: 'distancia', nodo: d.key, nivel: nvMap[d.nv].nombre, servicio: svMap[d.sv].nombre, metros: m, tecnico: por }) });
+        const j = await r.json(); if (!j.ok) throw new Error(j.error || 'error'); if (j.at) at = j.at;
+      }
+      dist[d.key] = { m, por, at };
+      if (DEMO) store.set('demo:dist', dist);
+      toast(`${d.tag}: ${fmtM(m)} m guardados ✓`);
+    } catch (err){ toast(err.message === 'clave' ? 'La clave no coincide. Avisa a tu supervisor.' : 'No se pudo guardar la distancia. Revisa tu señal e inténtalo otra vez.', 4500); }
+    finally { savingD = false; renderAll(); }
+  });
+
+  // ---------------- Exportar plano a PNG ----------------
+  $('exportBtn').onclick = async () => {
+    const b = $('exportBtn'); b.disabled = true; toast('Generando imagen…', 20000);
+    try {
+      if (!img.complete || !img.naturalWidth) await new Promise(r => img.addEventListener('load', r, { once: true }));
+      const vis = visibles(), svs = svcsNivel(nivel).filter(s => servicio === 'todos' || s.id === servicio);
+      const head = 110, side = 760, cw = W + side, ch = H + head;
+      const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#fff'; c.fillRect(0, 0, cw, ch);
+      c.fillStyle = '#1c2125'; c.fillRect(0, 0, cw, head);
+      c.fillStyle = '#fff'; c.textBaseline = 'middle';
+      c.font = '700 54px "Barlow Condensed", "Arial Narrow", sans-serif';
+      c.fillText(`${OBRA ? OBRA + ' · ' : ''}${nivel.nombre}${servicio === 'todos' ? '' : ' · ' + svMap[servicio].nombre}`, 36, head / 2);
+      c.font = '500 26px "Barlow", sans-serif'; c.textAlign = 'right';
+      c.fillText(new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }), cw - 36, head / 2);
+      c.textAlign = 'left';
+      c.drawImage(img, 0, head, W, H);
+      const R = 11;
+      const colorDe = d => optMode === 'avance' ? ({ done: '#1f8f4e', mid: '#ef7d00', pend: '#f5b700' })[estado(d)] : svMap[d.sv].color;
+      for (const d of vis){
+        const x = d.x * W, y = head + d.y * H;
+        c.beginPath(); c.arc(x, y, R + 3, 0, Math.PI * 2); c.fillStyle = '#fff'; c.fill();
+        c.beginPath(); c.arc(x, y, R, 0, Math.PI * 2); c.fillStyle = colorDe(d); c.fill(); c.lineWidth = 3; c.strokeStyle = '#1c2125'; c.stroke();
+      }
+      if (optLabels){
+        const fs = Math.round(optSize * 1.25), lh = Math.round(fs * 1.45);
+        c.font = `600 ${fs}px "IBM Plex Mono", monospace`;
+        const txt = d => d.tag + (hasD(d) ? ` · ${fmtM(dist[d.key].m)} m` : '');
+        const list = vis.map(d => ({ x: d.x * W, y: head + d.y * H, r: R + 3, w: c.measureText(txt(d)).width + 10, h: lh }));
+        const pos = acomodar(list, 5);
+        vis.forEach((d, i) => {
+          const o = list[i], lx = o.x + pos[i].dx, ly = o.y + pos[i].dy;
+          if (pos[i].dy < -o.h/2 - 1 || pos[i].dy > -o.h/2 + 1){ c.strokeStyle = '#1c2125'; c.lineWidth = 2; c.beginPath(); c.moveTo(o.x, o.y); c.lineTo(pos[i].dx > 0 ? lx : lx + o.w, ly + o.h/2); c.stroke(); }
+          c.fillStyle = '#1c2125'; roundRect(c, lx, ly, o.w, o.h, 4); c.fill();
+          c.fillStyle = '#fff'; c.textBaseline = 'middle'; c.fillText(txt(d), lx + 5, ly + o.h/2 + 1);
+        });
+      }
+      // Tabla lateral: nodos y metros por servicio
+      const sx = W + 40, ex = cw - 40; let sy = head + 70;
+      c.fillStyle = '#1c2125'; c.font = '700 40px "Barlow Condensed", sans-serif'; c.fillText('Nodos y cable registrado', sx, sy); sy += 60;
+      c.font = '600 20px "Barlow", sans-serif'; c.fillStyle = '#5b636a';
+      c.fillText('SERVICIO', sx + 40, sy); c.textAlign = 'right'; c.fillText('NODOS', ex - 150, sy); c.fillText('METROS', ex, sy); c.textAlign = 'left'; sy += 46;
+      let tn = 0, tm = 0;
+      for (const s of svs){
+        const ls = vis.filter(d => d.sv === s.id), m = metros(ls); tn += ls.length; tm += m;
+        c.beginPath(); c.arc(sx + 14, sy, 12, 0, Math.PI * 2); c.fillStyle = s.color; c.fill(); c.lineWidth = 3; c.strokeStyle = '#1c2125'; c.stroke();
+        c.fillStyle = '#1c2125'; c.font = '500 26px "Barlow", sans-serif'; c.fillText(s.nombre, sx + 40, sy);
+        c.font = '600 26px "IBM Plex Mono", monospace'; c.textAlign = 'right'; c.fillText(String(ls.length), ex - 150, sy); c.fillText(fmtM(m), ex, sy); c.textAlign = 'left';
+        sy += 52;
+      }
+      c.fillStyle = '#1c2125'; c.fillRect(sx, sy - 22, ex - sx, 3); sy += 22;
+      c.font = '700 28px "Barlow", sans-serif'; c.fillText('Total', sx, sy);
+      c.font = '600 28px "IBM Plex Mono", monospace'; c.textAlign = 'right'; c.fillText(String(tn), ex - 150, sy); c.fillText(fmtM(tm) + ' m', ex, sy); c.textAlign = 'left';
+      if (optMode === 'avance'){
+        sy += 80; c.font = '500 24px "Barlow", sans-serif';
+        [['#f5b700', 'Falta foto y distancia'], ['#ef7d00', 'Falta foto o distancia'], ['#1f8f4e', 'Completo']].forEach(([col, t]) => { c.beginPath(); c.arc(sx + 14, sy, 12, 0, Math.PI*2); c.fillStyle = col; c.fill(); c.lineWidth = 3; c.strokeStyle = '#1c2125'; c.stroke(); c.fillStyle = '#1c2125'; c.fillText(t, sx + 40, sy); sy += 46; });
+      }
+      const blob = await new Promise((ok, bad) => cv.toBlob(x => x ? ok(x) : bad(new Error('blob')), 'image/png'));
+      descargar(blob, `Narval_${nivel.corto.replace(/\s+/g, '')}_${servicio === 'todos' ? 'Todos' : svMap[servicio].corto.replace(/\s+/g, '')}_${new Date().toISOString().slice(0,10)}.png`);
+      toast('Imagen descargada ✓');
+    } catch (e){ toast('No se pudo generar la imagen.'); }
+    b.disabled = false;
+  };
+  function roundRect(c, x, y, w, h, r){ c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+  function descargar(blob, nombre){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }
+
+  // ---------------- Registro CSV ----------------
+  $('csvBtn').onclick = () => {
+    const ordN = Object.fromEntries(NIVELES.map((n, i) => [n.id, i]));
+    const filas = [...ITEMS].sort((a, b) => (ordN[a.nv] - ordN[b.nv]) || (ordS[a.sv] - ordS[b.sv]) || a.tag.localeCompare(b.tag, 'es', { numeric: true }));
+    const cel = v => { const s = String(v ?? ''); return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const lineas = [['Nivel', 'Servicio', 'Nodo', 'Metros', 'Fotos', 'Registró', 'Fecha registro', 'Estado'].join(',')];
+    for (const d of filas){ const dd = dist[d.key] || {}; lineas.push([nvMap[d.nv].nombre, svMap[d.sv].nombre, d.tag, hasD(d) ? dd.m : '', nF(d), dd.por || '', dd.at ? fmtFecha(dd.at) : '', ({ done: 'Completo', mid: 'Parcial', pend: 'Pendiente' })[estado(d)]].map(cel).join(',')); }
+    descargar(new Blob(['﻿' + lineas.join('\r\n')], { type: 'text/csv;charset=utf-8' }), `Narval_registro_cableado_${new Date().toISOString().slice(0,10)}.csv`);
+    toast('Registro descargado ✓');
+  };
+
+  // ---------------- Google Drive ----------------
+  async function cargar(){
+    if (DEMO) return;
+    try {
+      const r = await fetch(`${API}?clave=${encodeURIComponent(CLAVE)}&t=${Date.now()}`);
+      const j = await r.json();
+      if (!j.ok){ aviso(j.error === 'clave' ? `La clave ("${CLAVE}") no coincide con la del script de Google que termina en …${API.slice(-12)}.` : 'El script de Google respondió con un error.'); return; }
+      fotos = j.fotos || {}; dist = j.distancias || {};
+      ready = true; $('notice').hidden = true; renderAll();
+    } catch (e){ if (!ready) aviso('No se pudo conectar con Google Drive. Revisa tu conexión.'); }
+  }
+  function aviso(t){ const n = $('notice'); n.textContent = t; n.hidden = false; }
+  const aBase64 = blob => new Promise((ok, bad) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = bad; fr.readAsDataURL(blob); });
+  async function subir(blob, d){
+    if (DEMO){ (fotos[d.key] = fotos[d.key] || []).push({ url: URL.createObjectURL(blob), at: new Date().toISOString() }); return; }
+    const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ clave: CLAVE, accion: 'foto', nodo: d.key, nivel: nvMap[d.nv].nombre, servicio: svMap[d.sv].nombre, imagen: await aBase64(blob) }) });
+    const j = await r.json(); if (!j.ok) throw new Error(j.error || 'error');
+    (fotos[d.key] = fotos[d.key] || []).push({ id: j.id, at: new Date().toISOString() });
+  }
+  async function intentar(blob, d){
+    busy = true; renderSheet(false); toast(`Subiendo foto de ${d.tag}…`, 90000);
+    try { await subir(blob, d); pendiente = null; toast(DEMO ? `Foto de ${d.tag} lista (modo prueba, no se sube) ✓` : `Foto de ${d.tag} guardada ✓`); }
+    catch (e){ pendiente = { blob, d }; toast(e.message === 'clave' ? 'La clave no coincide. Avisa a tu supervisor.' : 'No se pudo subir la foto.', 4000); }
+    finally { busy = false; renderAll(); }
+  }
+
+  // ---------------- Foto ----------------
+  $('sCam').onclick = () => { if (busy || !sel) return; $('cam').value = ''; $('cam').click(); };
+  $('rRetry').onclick = () => { if (pendiente && !busy) intentar(pendiente.blob, pendiente.d); };
+  $('rSave').onclick = () => {
+    if (!pendiente) return;
+    descargar(pendiente.blob, `${pendiente.d.key}_${Date.now()}.jpg`);
+    toast('Foto guardada en el teléfono. Mándasela a tu supervisor.', 4000);
+  };
+  function loadImg(file){ return new Promise((ok, bad) => { const u = URL.createObjectURL(file), im = new Image(); im.onload = () => { ok(im); URL.revokeObjectURL(u); }; im.onerror = () => { bad(new Error('img')); URL.revokeObjectURL(u); }; im.src = u; }); }
+  async function procesar(file, d){
+    const im = await loadImg(file);
+    const sc = Math.min(1, 1800 / Math.max(im.naturalWidth, im.naturalHeight));
+    const w = Math.round(im.naturalWidth * sc), h = Math.round(im.naturalHeight * sc);
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const cx = cv.getContext('2d');
+    cx.drawImage(im, 0, 0, w, h);
+    const band = Math.max(42, Math.round(Math.min(w, h) * 0.075));
+    cx.fillStyle = 'rgba(0,0,0,0.65)'; cx.fillRect(0, h - band, w, band);
+    cx.fillStyle = '#fff'; cx.textBaseline = 'middle';
+    cx.font = `700 ${Math.round(band*0.5)}px "IBM Plex Mono", monospace`;
+    cx.fillText(d.tag, band*0.3, h - band/2);
+    const tw = cx.measureText(d.tag).width;
+    cx.font = `500 ${Math.round(band*0.34)}px "Barlow", sans-serif`;
+    const fecha = new Date().toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' });
+    const extra = hasD(d) ? fmtM(dist[d.key].m) + ' m' : '';
+    cx.fillText([svMap[d.sv].corto, nvMap[d.nv].nombre, extra, OBRA, fecha].filter(Boolean).join(' · '), band*0.3 + tw + band*0.5, h - band/2, Math.max(10, w - tw - band*1.2));
+    if (img.complete && img.naturalWidth){
+      const ins = Math.round(Math.min(w, h) * 0.3), pad = Math.round(ins * 0.06), R = 110;
+      const px = d.x * img.naturalWidth, py = d.y * img.naturalHeight, x0 = w - ins - pad, y0 = pad;
+      cx.fillStyle = '#fff'; cx.fillRect(x0 - 4, y0 - 4, ins + 8, ins + 8);
+      cx.drawImage(img, px - R, py - R, R*2, R*2, x0, y0, ins, ins);
+      cx.strokeStyle = '#1d6fe0'; cx.lineWidth = Math.max(3, ins*0.025);
+      cx.beginPath(); cx.arc(x0 + ins/2, y0 + ins/2, ins*0.09, 0, Math.PI*2); cx.stroke();
+      cx.strokeStyle = '#1c2125'; cx.lineWidth = 2; cx.strokeRect(x0 - 4, y0 - 4, ins + 8, ins + 8);
+    }
+    return await new Promise((ok, bad) => cv.toBlob(b => b ? ok(b) : bad(new Error('blob')), 'image/jpeg', 0.82));
+  }
+  $('cam').addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0], d = sel;
+    if (!file || !d) return;
+    let blob; try { blob = await procesar(file, d); } catch (err){ toast('No se pudo leer la foto. Tómala otra vez.'); return; }
+    intentar(blob, d);
+  });
+
+  // ---------------- Visor de fotos ----------------
+  function cerrarLB(){ $('lb').hidden = true; $('lbImg').removeAttribute('src'); }
+  $('lbClose').onclick = cerrarLB;
+  document.addEventListener('keydown', e => { if (e.key === 'Escape'){ if (!$('lb').hidden) cerrarLB(); else if (!$('panel').hidden) togglePanel(false); else if (!$('sheet').hidden) closeSheet(); else if (vp.classList.contains('full')) $('zFull').click(); } });
+  $('sThumbs').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || !sel) return;
+    const i = +b.dataset.i, f = fotos[sel.key][i];
+    $('lbImg').referrerPolicy = 'no-referrer';
+    $('lbImg').src = thumb(f, 1600); $('lbTitle').textContent = sel.tag + (nF(sel) > 1 ? ` · ${i+1}` : ''); $('lb').hidden = false;
+  });
+
+  // ---------------- Arranque ----------------
+  img.addEventListener('load', fitView);
+  if (servicio !== 'todos' && !svcsNivel(nivel).some(s => s.id === servicio)) servicio = 'todos';
+  cargarVista(true);
+  if (DEMO) aviso('Modo prueba: puedes ver planos, registrar distancias y tomar fotos, pero todo se queda solo en este teléfono. Cuando conectemos Google Drive se guardará para todos.');
+  else { cargar(); setInterval(() => { if (!busy && !savingD && document.visibilityState === 'visible') cargar(); }, 30000); }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !DEMO) cargar(); });
+})();
+</script>
+</body>
+</html>
